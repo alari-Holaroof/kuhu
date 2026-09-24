@@ -1,6 +1,6 @@
 // Kultuurikava ei vasta välismaistele serveritele (GitHub), seepärast tõmbab selle Eesti arvuti
-// ja saadab harusse „kultuurikava" (üks commit, surutakse üle → ajalugu ei kasva). Push käivitab avaldamise.
-// Käivitab Windowsi ajastatud ülesanne „Kus mis toimub – Kultuurikava" (06:00 ja 14:00).
+// ja saadab harusse „kultuurikava" (üks commit, surutakse üle → ajalugu ei kasva), siis käivitab avaldamise.
+// Käivitab Windowsi ajastatud ülesanne „KUHU Kultuurikava" (06:00 ja 14:00).
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,4 +14,5 @@ const kohad = git('hash-object -w vahemalu/kk-kohad.json');
 const puu = execSync('git mktree', { cwd: JUUR, encoding: 'utf8', input: `100644 blob ${toores}\tkk-toores.json\n100644 blob ${kohad}\tkk-kohad.json\n` }).trim();
 const commit = git(`commit-tree ${puu} -m "Kultuurikava ${new Date().toISOString().slice(0, 16)}"`);
 git(`push -f origin ${commit}:refs/heads/kultuurikava`);
+execSync('gh workflow run uuenda.yml -R alari-Holaroof/kuhu', { cwd: JUUR, stdio: 'inherit' });
 console.log('Saadetud GitHubi, avaldamine käivitub.');
