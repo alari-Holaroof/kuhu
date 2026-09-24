@@ -1,0 +1,9 @@
+name: proov
+on: workflow_dispatch
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in https://www.kultuurikava.ee/ https://kultuuriaken.tartu.ee/ https://www.piletilevi.ee/ https://inaadress.maaamet.ee/ https://elvakultuur.ee/ https://search.service.eu-live.vportal.ee/ https://autosport.ee/; do curl -s -m 20 -o /dev/null -w "$u %{http_code} %{time_total}s\n" -A "Mozilla/5.0" "$u" || echo "$u FAIL $?"; done
+          node -e "fetch('https://www.kultuurikava.ee/').then(r=>console.log('node',r.status)).catch(e=>console.log('node err',e.cause))"
