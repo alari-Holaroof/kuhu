@@ -387,7 +387,7 @@ function joonistaNimekiri() {
     for (const y of tulem.slice(0, olek.naita)) {
       const k = D.kohad[y.p];
       if (olek.jarjestus === 'aeg') { const pv = paevVoti(Math.max(y.s, alg)); if (pv !== eelm) { h += `<div class="paev">${esc(paevaPealkiri(Math.max(y.s, alg)))}</div>`; eelm = pv; } }
-      const kell = y.kestev ? `<small>kuni</small>${fLyh.format(new Date(y.e * 1000))}` : y.paev ? `<small>terve</small>päev` : `${fKell.format(new Date(y.s * 1000))}${olek.jarjestus === 'kaugus' ? `<small>${fLyh.format(new Date(y.s * 1000))}</small>` : ''}`;
+      const kell = y.kestev ? `<small>kuni</small>${fLyh.format(new Date(y.e * 1000))}` : y.paev ? `<small>terve</small>päev` : `${fKell.format(new Date(y.s * 1000))}${olek.jarjestus === 'kaugus' || paevVoti(y.s) !== paevVoti(Math.max(y.s, alg)) ? `<small>${paevVoti(y.s) !== paevVoti(Math.max(y.s, alg)) ? 'alates ' : ''}${fLyh.format(new Date(y.s * 1000))}</small>` : ''}`;
       h += `<button class="yr" data-p="${y.p}"><div class="kell">${kell}</div><div><div class="pk">${esc(y.n)}</div><div class="koht">${esc(k.n)}${k.linn && k.linn !== 'Muu' && !k.n.includes(k.linn) ? `, ${esc(k.linn)}` : ''}</div><div class="silt" style="--v:var(--k-${y.k})"><i></i>${esc(KAT[y.k])}${y.tasuta ? ' <span class="pill">tasuta</span>' : ''}${!y.kestev && !y.paev && y.s < Date.now() / 1000 && y.e > Date.now() / 1000 ? ' <span class="pill kaib">käib</span>' : ''}</div></div><div class="kaugus">${kmTekst(y._d)}</div></button>`;
     }
     if (tulem.length > olek.naita) h += `<button class="nupp lisa" id="rohkem">Näita veel ${Math.min(150, tulem.length - olek.naita)}</button>`;

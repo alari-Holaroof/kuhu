@@ -599,6 +599,8 @@ for (let i = 0; i < yritused.length; i++) {
     if (norm(b.n).slice(0, 25) === an && kaugus(kohad[a.p], kohad[b.p]) < 1) eemalda.add(kohad[a.p].ligi ? i : j);
   }
 }
+const samad = new Set();
+for (let i = 0; i < yritused.length; i++) { const y = yritused[i]; const v = `${norm(y.n)}|${y.s}|${y.p}`; if (samad.has(v)) eemalda.add(i); else samad.add(v); }
 const lopp = yritused.filter((_, i) => !eemalda.has(i));
 yritused.length = 0; yritused.push(...lopp);
 
