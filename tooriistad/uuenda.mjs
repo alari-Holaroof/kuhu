@@ -110,11 +110,11 @@ if (kkAPI) {
   }
   // kärbitud toorfail (kategooria juba arvutatud), et GitHub saaks ilma API-ta hakkama
   kkYritused = kkYritused.map(e => ({
-    id: e.id, url: e.url, name: e.name, k: kategooria(e.categories), excerpt: puhasta(e.excerpt).slice(0, 180), isfree: e.isfree, hasimage: e.hasimage,
+    id: e.id, url: e.url, name: e.name, k: kategooria(e.categories), excerpt: puhasta(e.excerpt).slice(0, 180), ...(e.times?.length && !e.times.some(t => (t.end_time || t.start_time) >= nyyd && t.start_time <= piir) ? { vana: 1 } : {}), isfree: e.isfree, hasimage: e.hasimage,
     ticketurl: e.ticketurl?.[0]?.ticketurl ? [{ ticketurl: e.ticketurl[0].ticketurl }] : [],
     start_time: e.start_time, end_time: e.end_time, place_url: e.place_url,
-    times: (e.times || []).map(t => ({ start_time: t.start_time, end_time: t.end_time, place_url: t.place_url })),
-  }));
+    times: (e.times || []).filter(t => (t.end_time || t.start_time) >= nyyd && t.start_time <= piir).map(t => ({ start_time: t.start_time, end_time: t.end_time, place_url: t.place_url })),
+  })).filter(e => !e.vana);
   kirjuta(path.join(VAHEMALU, 'kk-toores.json'), { aeg: nyyd, yritused: kkYritused });
   if (process.env.AINULT_KULTUURIKAVA) { console.log('VALMIS (ainult Kultuurikava)'); process.exit(0); }
 } else {
