@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="et">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kus mis toimub</title>
+<meta name="description" content="Kõik Eesti üritused ühel kaardil: kontserdid, etendused, kino, laadad, rahvamajad ja kultuurimajad sinu lähedal.">
+<meta name="theme-color" content="#f3f5f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101614" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="ikoon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
+<style>
+:root{
+  --paber:#f3f5f1; --pind:#ffffff; --pind2:#e9ede7; --joon:#d5dcd3;
+  --tint:#17211e; --tint2:#4c5a55; --tint3:#7a8783;
+  --rukkilill:#2f4fd0; --rukkilill-pehme:#e3e8fb; --mets:#1e5a48;
+  --mina:#1a73e8; --vari:0 8px 28px rgba(20,34,30,.16);
+  --r:14px;
+  --k-teater:#b4432a; --k-muusika:#6b3fc4; --k-kino:#2c3440; --k-pidu:#c2338f; --k-sport:#1f8a5b; --k-moto:#d4461f;
+  --k-pere:#d88a0b; --k-naitus:#2b7fa8; --k-laat:#8a6a1f; --k-kirjandus:#7b5a44; --k-kirik:#5d6b8a;
+  --k-huvi:#0f8c8c; --k-muu:#6f7b76; --k-maja:#1e5a48;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paber:#101614; --pind:#172120; --pind2:#1f2a28; --joon:#2c3936;
+    --tint:#e7eeea; --tint2:#a9b6b1; --tint3:#7d8a86;
+    --rukkilill:#8ea2ff; --rukkilill-pehme:#232c52; --mets:#6fc3a4; --mina:#6aa8ff; --vari:0 8px 28px rgba(0,0,0,.5);
+    --k-kino:#9aa7b8; --k-maja:#6fc3a4;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paber:#101614; --pind:#172120; --pind2:#1f2a28; --joon:#2c3936;
+  --tint:#e7eeea; --tint2:#a9b6b1; --tint3:#7d8a86;
+  --rukkilill:#8ea2ff; --rukkilill-pehme:#232c52; --mets:#6fc3a4; --mina:#6aa8ff; --vari:0 8px 28px rgba(0,0,0,.5);
+  --k-kino:#9aa7b8; --k-maja:#6fc3a4;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paber);color:var(--tint);font:15px/1.45 Figtree,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--rukkilill);outline-offset:2px}
+
+.rakendus{display:grid;grid-template-columns:420px 1fr;height:100%}
+.paneel{display:flex;flex-direction:column;min-height:0;background:var(--pind);border-right:1px solid var(--joon);z-index:2}
+.pais{min-width:0;padding:calc(14px + env(safe-area-inset-top,0px)) 16px 10px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--joon)}
+.nimerida{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+h1{font:800 26px/1 "Bricolage Grotesque",Figtree,sans-serif;letter-spacing:-.02em;margin:0;text-wrap:balance}
+h1 .kysi{color:var(--rukkilill)}
+.uuendatud{font-size:12px;color:var(--tint3);text-align:right}
+.otsing{display:flex;gap:8px}
+.otsing input{flex:1;min-width:0;border:1px solid var(--joon);background:var(--paber);border-radius:10px;padding:9px 12px}
+.nupp{border:1px solid var(--joon);background:var(--pind);border-radius:10px;padding:8px 12px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-weight:600}
+.nupp.pea{background:var(--rukkilill);border-color:var(--rukkilill);color:#fff}
+:root[data-theme="dark"] .nupp.pea{color:#0d1330}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .nupp.pea{color:#0d1330}}
+.nupp svg{width:17px;height:17px;flex:none}
+.kiibid{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.kiibid::-webkit-scrollbar{display:none}
+.kiip{flex:none;border:1px solid var(--joon);background:transparent;border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600;color:var(--tint2);display:inline-flex;align-items:center;gap:6px}
+.kiip[aria-pressed="true"]{background:var(--tint);border-color:var(--tint);color:var(--paber)}
+.filtrinupp{display:none!important}
+.kiip .tapp{width:8px;height:8px;border-radius:50%;background:var(--v)}
+.paevad{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.paevanupp{border:1.5px solid var(--joon);background:var(--paber);border-radius:12px;padding:7px 6px 6px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
+.paevanupp span{font:800 15px/1.1 "Bricolage Grotesque",Figtree,sans-serif;white-space:nowrap}
+.paevanupp b{font-size:12px;font-weight:600;color:var(--tint3);font-variant-numeric:tabular-nums}
+.paevanupp.edasi span{font-weight:600;color:var(--tint2)}
+.paevanupp[aria-pressed="true"]{background:var(--rukkilill);border-color:var(--rukkilill);color:#fff}
+.paevanupp[aria-pressed="true"] b,.paevanupp[aria-pressed="true"] span{color:inherit;opacity:.95}
+:root[data-theme="dark"] .paevanupp[aria-pressed="true"]{color:#0d1330}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .paevanupp[aria-pressed="true"]{color:#0d1330}}
+.paevad .kiip{grid-column:span 2;justify-content:center}
+.katrida{display:flex;gap:6px;align-items:center;min-width:0}
+.katrida .kiibid{flex:1;min-width:0}
+.seaded{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--tint2)}
+.seaded select{border:1px solid var(--joon);background:var(--paber);border-radius:8px;padding:4px 6px}
+.seaded label{display:inline-flex;align-items:center;gap:5px}
+.asukoht{font-size:13px;color:var(--tint2);display:flex;align-items:center;gap:6px;min-height:20px}
+.asukoht b{color:var(--tint)}
+.punkt{width:9px;height:9px;border-radius:50%;background:var(--tint3);flex:none}
+.punkt.gps{background:var(--mina);box-shadow:0 0 0 3px color-mix(in srgb,var(--mina) 30%,transparent)}
+
+.nimekiri{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:0 0 calc(80px + env(safe-area-inset-bottom,0px))}
+.kokkuvote{padding:10px 16px;font-size:13px;color:var(--tint2);display:flex;justify-content:space-between;gap:8px}
+.kokkuvote b{color:var(--tint);font-variant-numeric:tabular-nums}
+.paev{position:sticky;top:0;background:var(--pind);padding:10px 16px 6px;font:700 12px/1 Figtree,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--tint3);border-bottom:1px solid var(--joon);z-index:1}
+.yr{display:grid;grid-template-columns:52px 1fr auto;gap:10px;padding:11px 16px;border-bottom:1px solid var(--joon);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;text-align:left;width:100%}
+.yr:hover{background:var(--pind2)}
+.yr .kell{font:700 15px/1.2 Figtree,sans-serif;font-variant-numeric:tabular-nums}
+.yr .kell small{display:block;font-weight:500;font-size:11px;color:var(--tint3)}
+.yr .pk{font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.yr .koht{font-size:13px;color:var(--tint2);margin-top:2px}
+.yr .silt{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--tint3);margin-top:3px}
+.yr .silt i{width:7px;height:7px;border-radius:50%;background:var(--v)}
+.yr .kaugus{font-size:12px;font-weight:700;color:var(--tint2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{font-size:11px;font-weight:700;border-radius:999px;padding:1px 7px;background:var(--rukkilill-pehme);color:var(--rukkilill)}
+.pill.kaib{background:color-mix(in srgb,var(--k-sport) 18%,transparent);color:var(--k-sport)}
+.tyhi{padding:40px 24px;text-align:center;color:var(--tint2)}
+.lisa{display:block;margin:12px auto;}
+
+#kaart{height:100%;width:100%;background:var(--pind2)}
+.kaardiala{position:relative;min-height:0}
+.kaardinupud{position:absolute;right:12px;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:500;display:flex;flex-direction:column;gap:8px}
+.kaardinupud .nupp{box-shadow:var(--vari)}
+.vaheta{display:none}
+
+/* markerid */
+.m{--v:var(--k-muu);display:grid;place-items:center;width:30px;height:30px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--v);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);color:#fff;font:700 12px/1 Figtree,sans-serif}
+.m span{transform:rotate(45deg)}
+.maja{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--pind);border:2px solid var(--k-maja);color:var(--k-maja);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.maja svg{width:13px;height:13px}
+.mina{width:18px;height:18px;border-radius:50%;background:var(--mina);border:3px solid #fff;box-shadow:0 0 0 6px color-mix(in srgb,var(--mina) 25%,transparent),0 1px 4px rgba(0,0,0,.4)}
+.marker-cluster{background:color-mix(in srgb,var(--rukkilill) 28%,transparent);border-radius:50%}
+.marker-cluster div{width:30px;height:30px;margin:5px;border-radius:50%;text-align:center;background:var(--rukkilill);color:#fff;font:700 12px/30px Figtree,sans-serif}
+:root[data-theme="dark"] .marker-cluster div{color:#0d1330}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .marker-cluster div{color:#0d1330}}
+
+.leaflet-popup-content-wrapper{background:var(--pind);color:var(--tint);border-radius:var(--r);box-shadow:var(--vari)}
+.leaflet-popup-tip{background:var(--pind)}
+.leaflet-popup-content{margin:14px 16px;font:14px/1.4 Figtree,sans-serif;width:280px!important;max-width:calc(100vw - 80px)}
+.leaflet-container a.leaflet-popup-close-button{color:var(--tint3)}
+.leaflet-container{font-family:Figtree,sans-serif}
+.pp h3{font:800 17px/1.2 "Bricolage Grotesque",sans-serif;margin:0 0 2px}
+.pp .aad{color:var(--tint2);font-size:12px;margin-bottom:8px}
+.pp .tyyp{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--k-maja);margin-bottom:4px}
+.pp ul{list-style:none;margin:0;padding:0;max-height:260px;overflow-y:auto}
+.pp li{padding:7px 0;border-top:1px solid var(--joon)}
+.pp li a{color:var(--tint);font-weight:700;text-decoration:none}
+.pp li a:hover{text-decoration:underline}
+.pp .aeg{font-size:12px;color:var(--tint2);font-variant-numeric:tabular-nums}
+.pp img{width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:8px;background:var(--pind2)}
+.pp .lingid{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:13px}
+.pp .lingid a{color:var(--rukkilill);font-weight:600}
+.pp .ligi{font-size:11px;color:var(--tint3);margin-top:6px}
+.allikad{padding:14px 16px 20px;font-size:12px;color:var(--tint3)}
+.allikad a{color:var(--tint2)}
+.teade{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:600;background:var(--tint);color:var(--paber);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--vari);max-width:calc(100% - 32px)}
+
+@media (max-width: 760px){
+  .rakendus{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .pais,.nimekiri,.kaardiala{min-width:0}
+  .paevanupp span{font-size:14px}
+  .paneel{display:contents}
+  .pais{grid-row:1;background:var(--pind);z-index:3;padding-bottom:8px;gap:8px}
+  h1{font-size:22px}
+  .nimekiri{grid-row:2;grid-column:1;background:var(--pind);z-index:2}
+  .kaardiala{grid-row:2;grid-column:1}
+  body[data-vaade="kaart"] .nimekiri{display:none}
+  body[data-vaade="nimekiri"] .kaardiala{visibility:hidden}
+  .vaheta{display:flex;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:700;background:var(--tint);border-radius:999px;padding:4px;box-shadow:var(--vari)}
+  .vaheta button{border:0;background:none;color:var(--paber);padding:8px 18px;border-radius:999px;font-weight:700;display:inline-flex;gap:6px;align-items:center}
+  .vaheta button[aria-pressed="true"]{background:var(--paber);color:var(--tint)}
+  .vaheta svg{width:16px;height:16px}
+  .kaardinupud{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .seaded{font-size:12px}
+  body:not(.filtrid) .seaded{display:none}
+  .filtrinupp{display:inline-flex!important}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body data-vaade="kaart">
+<div class="rakendus">
+  <aside class="paneel">
+    <header class="pais">
+      <div class="nimerida">
+        <h1>Kus mis toimub<span class="kysi">?</span></h1>
+        <div class="uuendatud" id="uuendatud">laen…</div>
+      </div>
+      <div class="otsing">
+        <input id="otsi" type="search" placeholder="Otsi üritust, kohta või linna" autocomplete="off">
+        <button class="nupp pea" id="gpsNupp" title="Näita minu asukohta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Minu asukoht
+        </button>
+      </div>
+      <div class="paevad" id="ajad" role="group" aria-label="Aeg"></div>
+      <div class="katrida"><div class="kiibid" id="kategooriad" role="group" aria-label="Kategooria"></div><button class="kiip filtrinupp" id="filtrid" aria-pressed="false">Filtrid</button></div>
+      <div class="seaded">
+        <label>Raadius
+          <select id="raadius">
+            <option value="10">10 km</option><option value="25">25 km</option><option value="50" selected>50 km</option>
+            <option value="100">100 km</option><option value="0">kogu Eesti</option>
+          </select>
+        </label>
+        <label>Järjestus
+          <select id="jarjestus"><option value="aeg">aja järgi</option><option value="kaugus">kauguse järgi</option></select>
+        </label>
+        <label><input type="checkbox" id="majad" checked> Kultuuri- ja rahvamajad</label>
+        <label><input type="checkbox" id="kestvad"> Näitused ja kestvad</label>
+        <label><input type="checkbox" id="tasuta"> Ainult tasuta</label>
+      </div>
+      <div class="asukoht" id="asukoht"><span class="punkt"></span><span>Asukoht: <b>Elva</b> (vajuta „Minu asukoht")</span></div>
+    </header>
+    <div class="nimekiri" id="nimekiri"><div class="tyhi">Laen üritusi…</div></div>
+  </aside>
+  <main class="kaardiala">
+    <div id="kaart" role="application" aria-label="Eesti kaart üritustega"></div>
+    <div class="kaardinupud">
+      <button class="nupp" id="minuleNupp" title="Kaart minu juurde"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></button>
+    </div>
+  </main>
+</div>
+<div class="vaheta" role="group" aria-label="Vaade">
+  <button id="vKaart" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>Kaart</button>
+  <button id="vNimekiri" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Nimekiri <span id="vArv"></span></button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+<script>
+const ELVA = { lat: 58.2226, lng: 26.4211, nimi: 'Elva' };
+const KAT = {
+  teater: 'Teater', muusika: 'Muusika', kino: 'Kino', pere: 'Pere ja lapsed', pidu: 'Pidu', sport: 'Sport', moto: 'Mootorsport',
+  naitus: 'Näitus', laat: 'Laat ja turg', kirjandus: 'Kirjandus', huvi: 'Õpi ja tee', kirik: 'Kirik', muu: 'Muu',
+};
+const MAJATYYP = { rahvamaja: 'Rahvamaja', kultuurimaja: 'Kultuurimaja', seltsimaja: 'Selts- ja külamaja', noortekeskus: 'Noortekeskus', teater: 'Teater', kino: 'Kino', kontserdisaal: 'Kontserdisaal' };
+const ALLIKAS = { kk: 'Kultuurikava', fi: 'Fienta', ka: 'Kultuuriaken', pl: 'Piletilevi', ve: 'Visit Estonia', pc: 'Piletikeskus', ek: 'Eesti Kontsert' };
+const MAJA_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11h3v10h5v-6h4v6h5V11h3z"/></svg>';
+
+const olek = { aeg: 'tana', kat: new Set(), otsi: '', raadius: 50, jarjestus: 'aeg', majad: true, kestvad: false, tasuta: false, mina: { ...ELVA, gps: false }, naita: 150 };
+try { const s = JSON.parse(localStorage.getItem('kmt') || '{}'); Object.assign(olek, { aeg: s.aeg || olek.aeg, raadius: s.raadius ?? olek.raadius, jarjestus: s.jarjestus || olek.jarjestus, majad: s.majad ?? true, kestvad: !!s.kestvad, tasuta: !!s.tasuta }); if (s.mina) olek.mina = { ...s.mina, gps: false, vana: true }; } catch {}
+const salvesta = () => { try { localStorage.setItem('kmt', JSON.stringify({ aeg: olek.aeg, raadius: olek.raadius, jarjestus: olek.jarjestus, majad: olek.majad, kestvad: olek.kestvad, tasuta: olek.tasuta, mina: olek.mina.gps ? { lat: olek.mina.lat, lng: olek.mina.lng, nimi: olek.mina.nimi } : undefined })); } catch {} };
+
+let D = { kohad: [], yritused: [] }, MAJAD = [];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+function km(a, b) { const R = 6371, r = Math.PI / 180, dLa = (b.lat - a.lat) * r, dLo = (b.lng - a.lng) * r; const x = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
+const kmTekst = d => d < 1 ? `${Math.round(d * 1000 / 50) * 50} m` : d < 10 ? `${d.toFixed(1).replace('.', ',')} km` : `${Math.round(d)} km`;
+
+// ---- aeg (Europe/Tallinn) ----
+const TZ = 'Europe/Tallinn';
+const fKell = new Intl.DateTimeFormat('et-EE', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+const fPaev = new Intl.DateTimeFormat('et-EE', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' });
+const fLyh = new Intl.DateTimeFormat('et-EE', { timeZone: TZ, day: 'numeric', month: 'numeric' });
+const fKuup = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+const paevVoti = t => fKuup.format(new Date(t * 1000));
+function paevaAlgus(voti) { // Tallinna kesköö unix-sekundites
+  const [y, m, d] = voti.split('-').map(Number);
+  for (const off of [3, 2]) { const t = Date.UTC(y, m - 1, d, -off) / 1000; if (paevVoti(t) === voti && paevVoti(t - 1) !== voti) return t; }
+  return Date.UTC(y, m - 1, d, -2) / 1000;
+}
+function ajavahemik(v) {
+  const nyyd = Date.now() / 1000, tana = paevaAlgus(paevVoti(nyyd)), P = 86400;
+  const nadalapaev = new Date((tana + 7200) * 1000).getUTCDay(); // 0=P
+  if (v === 'tana') return [nyyd, tana + P + 3 * 3600]; // öised peod kuni 03
+  if (v === 'homme') return [tana + P, tana + 2 * P];
+  if (v === 'yh') return [tana + 2 * P, tana + 3 * P];
+  if (v === 'edasi') return [tana + 3 * P, tana + 61 * P];
+  if (v === 'nv') { const r = tana + ((5 - nadalapaev + 7) % 7) * P; const alg = nadalapaev === 0 ? tana : nadalapaev === 6 ? tana - P : r; return [Math.max(nyyd, alg + 16 * 3600), alg + 3 * P]; }
+  if (v === '7') return [nyyd, tana + 7 * P];
+  if (v === '30') return [nyyd, tana + 30 * P];
+  return [nyyd, tana + 61 * P];
+}
+const AJAD = [['tana', 'Täna'], ['homme', 'Homme'], ['yh', 'Ülehomme'], ['edasi', 'Edaspidi'], ['nv', 'Nädalavahetus'], ['koik', 'Kõik']];
+function paevaPealkiri(t) {
+  const v = paevVoti(t), n = Date.now() / 1000;
+  const p = fPaev.format(new Date(t * 1000));
+  return v === paevVoti(n) ? `Täna · ${p}` : v === paevVoti(n + 86400) ? `Homme · ${p}` : v === paevVoti(n + 2 * 86400) ? `Ülehomme · ${p}` : p;
+}
+// kolm lähimat päeva on eraldi esile tõstetud, loendiga
+function paevaArvud() {
+  const n = {};
+  for (const v of ['tana', 'homme', 'yh', 'edasi']) {
+    const [a, b] = ajavahemik(v);
+    n[v] = D.yritused.reduce((s, y) => s + (y.e >= a && y.s <= b && (v === 'tana' || y.kestev || y.paev || y.s >= a) && (!y.kestev || olek.kestvad) && (!olek.raadius || km(olek.mina, D.kohad[y.p]) <= olek.raadius) && (!olek.kat.size || olek.kat.has(y.k)) && (!olek.tasuta || y.tasuta) ? 1 : 0), 0);
+  }
+  return n;
+}
+
+// ---- UI kiibid ----
+function kiibid() {
+  const arv = D.yritused.length ? paevaArvud() : {};
+  $('ajad').innerHTML = AJAD.map(([v, n], i) => i < 4
+    ? `<button class="paevanupp${v === 'edasi' ? ' edasi' : ''}" data-aeg="${v}" aria-pressed="${olek.aeg === v}"><span>${n}</span><b>${arv[v] ?? '·'}</b></button>`
+    : `<button class="kiip" data-aeg="${v}" aria-pressed="${olek.aeg === v}">${n}</button>`).join('');
+  $('kategooriad').innerHTML = `<button class="kiip" data-kat="" aria-pressed="${olek.kat.size === 0}">Kõik</button>` +
+    Object.entries(KAT).map(([k, n]) => `<button class="kiip" data-kat="${k}" aria-pressed="${olek.kat.has(k)}" style="--v:var(--k-${k})"><span class="tapp"></span>${n}</button>`).join('');
+  $('filtrid').setAttribute('aria-pressed', document.body.classList.contains('filtrid'));
+}
+$('ajad').onclick = e => { const b = e.target.closest('[data-aeg]'); if (!b) return; olek.aeg = b.dataset.aeg; salvesta(); kiibid(); arvuta(); };
+$('kategooriad').onclick = e => {
+  const b = e.target.closest('[data-kat]'); if (!b) return; const k = b.dataset.kat;
+  if (!k) olek.kat.clear(); else olek.kat.has(k) ? olek.kat.delete(k) : olek.kat.add(k);
+  kiibid(); arvuta();
+};
+let otsiTaimer; $('otsi').oninput = e => { clearTimeout(otsiTaimer); otsiTaimer = setTimeout(() => { olek.otsi = norm(e.target.value.trim()); arvuta(); }, 180); };
+for (const [id, v, tyyp] of [['raadius', 'raadius', 'num'], ['jarjestus', 'jarjestus'], ['majad', 'majad', 'bool'], ['kestvad', 'kestvad', 'bool'], ['tasuta', 'tasuta', 'bool']]) {
+  const el = $(id); if (tyyp === 'bool') el.checked = olek[v]; else el.value = String(olek[v]);
+  el.onchange = () => { olek[v] = tyyp === 'bool' ? el.checked : tyyp === 'num' ? +el.value : el.value; salvesta(); arvuta(id === 'raadius'); };
+}
+function vaade(v) { document.body.dataset.vaade = v; $('vKaart').setAttribute('aria-pressed', v === 'kaart'); $('vNimekiri').setAttribute('aria-pressed', v === 'nimekiri'); if (v === 'kaart') setTimeout(() => kaart.invalidateSize(), 50); }
+$('filtrid').onclick = () => { document.body.classList.toggle('filtrid'); $('filtrid').setAttribute('aria-pressed', document.body.classList.contains('filtrid')); setTimeout(() => kaart.invalidateSize(), 50); };
+$('vKaart').onclick = () => vaade('kaart'); $('vNimekiri').onclick = () => vaade('nimekiri');
+
+// ---- kaart ----
+const kaart = L.map('kaart', { zoomControl: false, preferCanvas: false, minZoom: 6 }).setView([olek.mina.lat, olek.mina.lng], 10);
+L.control.zoom({ position: 'topright' }).addTo(kaart);
+const tume = () => document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+let aluskaart;
+function paneAluskaart() {
+  if (aluskaart) kaart.removeLayer(aluskaart);
+  aluskaart = tume()
+    ? L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/">CARTO</a>' })
+    : L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' });
+  aluskaart.addTo(kaart);
+}
+paneAluskaart();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paneAluskaart);
+
+const klastrid = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 44, spiderfyOnMaxZoom: true, chunkedLoading: true });
+const majaKiht = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 30, disableClusteringAtZoom: 11,
+  iconCreateFunction: c => L.divIcon({ html: `<div class="maja" style="width:26px;height:26px;font:700 11px/1 Figtree">${c.getChildCount()}</div>`, className: '', iconSize: [26, 26] }) });
+kaart.addLayer(klastrid);
+let minaMarker, tapsusRing, raadiusRing;
+const kohaMarkerid = new Map();
+
+function minaKaardile() {
+  const p = [olek.mina.lat, olek.mina.lng];
+  if (!minaMarker) minaMarker = L.marker(p, { icon: L.divIcon({ className: '', html: '<div class="mina"></div>', iconSize: [18, 18] }), zIndexOffset: 1000, keyboard: false, interactive: false }).addTo(kaart);
+  else minaMarker.setLatLng(p);
+  if (olek.mina.tapsus) { if (!tapsusRing) tapsusRing = L.circle(p, { radius: olek.mina.tapsus, color: getComputedStyle(document.documentElement).getPropertyValue('--mina'), weight: 1, fillOpacity: .08, interactive: false }).addTo(kaart); else tapsusRing.setLatLng(p).setRadius(olek.mina.tapsus); }
+  const r = olek.raadius * 1000;
+  if (raadiusRing) { kaart.removeLayer(raadiusRing); raadiusRing = null; }
+  if (r) raadiusRing = L.circle(p, { radius: r, color: getComputedStyle(document.documentElement).getPropertyValue('--rukkilill'), weight: 1.5, dashArray: '6 6', fill: false, interactive: false }).addTo(kaart);
+}
+
+function kohaPopup(k, kohaYr, maja) {
+  const pilt = kohaYr.find(y => y.img || y.imgUrl);
+  const pildiUrl = pilt ? (pilt.imgUrl || `${pilt.u}?do=image`) : '';
+  const rida = y => `<li><div class="aeg">${y.kestev ? `kuni ${fLyh.format(new Date(y.e * 1000))}` : y.paev ? `${fLyh.format(new Date(y.s * 1000))}, terve päev` : `${fLyh.format(new Date(y.s * 1000))} kell ${fKell.format(new Date(y.s * 1000))}`} · ${esc(KAT[y.k])}${y.tasuta ? ' · <b>tasuta</b>' : ''} · ${esc(ALLIKAS[y.src] || '')}</div><a href="${esc(y.u)}" target="_blank" rel="noopener">${esc(y.n)}</a></li>`;
+  const kaugus = km(olek.mina, k);
+  const nav = `https://www.google.com/maps/dir/?api=1&destination=${k.lat},${k.lng}`;
+  return `<div class="pp">${pildiUrl ? `<img src="${esc(pildiUrl)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+    ${maja ? `<div class="tyyp">${esc(MAJATYYP[maja.t] || 'Kultuurikoht')}</div>` : ''}
+    <h3>${esc(k.n)}</h3><div class="aad">${esc(k.a || k.linn || '')} · ${kmTekst(kaugus)} sinust</div>
+    ${kohaYr.length ? `<ul>${kohaYr.slice(0, 40).map(rida).join('')}</ul>` : '<div class="aad">Valitud ajal siin üritusi ei leitud.</div>'}
+    <div class="lingid"><a href="${nav}" target="_blank" rel="noopener">Juhata kohale</a>${(k.www || maja?.www) ? `<a href="${esc(k.www || maja.www)}" target="_blank" rel="noopener">Koduleht</a>` : ''}${maja?.tel ? `<span>${esc(maja.tel)}</span>` : ''}</div>
+    ${k.ligi ? '<div class="ligi">Asukoht on ligikaudne (asula keskpunkt).</div>' : ''}</div>`;
+}
+
+// ---- filtreerimine ----
+let tulem = [];
+function arvuta(liiguta) {
+  kiibid();
+  const [alg, lopp] = ajavahemik(olek.aeg);
+  const q = olek.otsi;
+  const kohaKaugus = D.kohad.map(k => km(olek.mina, k));
+  tulem = D.yritused.filter(y => {
+    if (y.e < alg || y.s > lopp) return false;
+    if (olek.aeg !== 'tana' && !y.kestev && !y.paev && y.s < alg) return false;
+    if (y.kestev && !olek.kestvad && !olek.kat.has('naitus')) return false;
+    if (olek.kat.size && !olek.kat.has(y.k)) return false;
+    if (olek.tasuta && !y.tasuta) return false;
+    if (olek.raadius && kohaKaugus[y.p] > olek.raadius) return false;
+    if (q) { const k = D.kohad[y.p]; if (!(y._n ??= norm(y.n + ' ' + k.n + ' ' + k.linn + ' ' + k.a)).includes(q)) return false; }
+    return true;
+  });
+  for (const y of tulem) y._d = kohaKaugus[y.p];
+  if (olek.jarjestus === 'kaugus') tulem.sort((a, b) => a._d - b._d || a.s - b.s);
+  else { const pv = y => paevVoti(Math.max(y.s, alg)); tulem.sort((a, b) => (pv(a) < pv(b) ? -1 : pv(a) > pv(b) ? 1 : 0) || (!!a.kestev - !!b.kestev) || (!!b.paev - !!a.paev) || a.s - b.s || a._d - b._d); }
+  olek.naita = 150;
+  joonistaNimekiri(); joonistaKaart(); minaKaardile();
+  if (liiguta && olek.raadius) kaart.fitBounds(raadiusRing.getBounds(), { padding: [20, 20] });
+}
+
+function joonistaNimekiri() {
+  const el = $('nimekiri');
+  $('vArv').textContent = tulem.length ? `(${tulem.length})` : '';
+  const kohti = new Set(tulem.map(y => y.p)).size;
+  const kus = olek.raadius ? `${olek.raadius} km raadiuses` : 'kogu Eestis';
+  let h = `<div class="kokkuvote"><span><b>${tulem.length}</b> üritust <b>${kohti}</b> kohas, ${kus}</span></div>`;
+  if (!tulem.length) {
+    h += `<div class="tyhi">Selle filtriga üritusi ei leitud.<br>${olek.raadius && olek.raadius < 100 ? '<button class="nupp lisa" id="laienda">Otsi 100 km raadiuses</button>' : ''}</div>`;
+  } else {
+    let eelm = '';
+    const [alg] = ajavahemik(olek.aeg);
+    for (const y of tulem.slice(0, olek.naita)) {
+      const k = D.kohad[y.p];
+      if (olek.jarjestus === 'aeg') { const pv = paevVoti(Math.max(y.s, alg)); if (pv !== eelm) { h += `<div class="paev">${esc(paevaPealkiri(Math.max(y.s, alg)))}</div>`; eelm = pv; } }
+      const kell = y.kestev ? `<small>kuni</small>${fLyh.format(new Date(y.e * 1000))}` : y.paev ? `<small>terve</small>päev` : `${fKell.format(new Date(y.s * 1000))}${olek.jarjestus === 'kaugus' ? `<small>${fLyh.format(new Date(y.s * 1000))}</small>` : ''}`;
+      h += `<button class="yr" data-p="${y.p}"><div class="kell">${kell}</div><div><div class="pk">${esc(y.n)}</div><div class="koht">${esc(k.n)}${k.linn && k.linn !== 'Muu' && !k.n.includes(k.linn) ? `, ${esc(k.linn)}` : ''}</div><div class="silt" style="--v:var(--k-${y.k})"><i></i>${esc(KAT[y.k])}${y.tasuta ? ' <span class="pill">tasuta</span>' : ''}${!y.kestev && !y.paev && y.s < Date.now() / 1000 && y.e > Date.now() / 1000 ? ' <span class="pill kaib">käib</span>' : ''}</div></div><div class="kaugus">${kmTekst(y._d)}</div></button>`;
+    }
+    if (tulem.length > olek.naita) h += `<button class="nupp lisa" id="rohkem">Näita veel ${Math.min(150, tulem.length - olek.naita)}</button>`;
+  }
+  h += `<div class="allikad">Andmed: <a href="https://www.kultuurikava.ee" target="_blank" rel="noopener">Kultuurikava</a>, <a href="https://kultuuriaken.tartu.ee" target="_blank" rel="noopener">Kultuuriaken</a>, <a href="https://fienta.com" target="_blank" rel="noopener">Fienta</a>, <a href="https://www.piletilevi.ee" target="_blank" rel="noopener">Piletilevi</a>, <a href="https://www.piletikeskus.ee" target="_blank" rel="noopener">Piletikeskus</a>, <a href="https://visitestonia.com" target="_blank" rel="noopener">Visit Estonia</a>, <a href="https://concert.ee" target="_blank" rel="noopener">Eesti Kontsert</a>, kultuurimajad <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>. Kontrolli aega korraldaja lehelt.</div>`;
+  el.innerHTML = h;
+  $('rohkem')?.addEventListener('click', () => { olek.naita += 150; const s = el.scrollTop; joonistaNimekiri(); el.scrollTop = s; });
+  $('laienda')?.addEventListener('click', () => { olek.raadius = 100; $('raadius').value = '100'; salvesta(); arvuta(true); });
+}
+$('nimekiri').addEventListener('click', e => {
+  const b = e.target.closest('.yr'); if (!b) return;
+  const p = +b.dataset.p; const m = kohaMarkerid.get(p); if (!m) return;
+  vaade('kaart');
+  klastrid.zoomToShowLayer(m, () => m.openPopup());
+});
+
+function joonistaKaart() {
+  klastrid.clearLayers(); kohaMarkerid.clear();
+  const kohaYr = new Map();
+  for (const y of tulem) { if (!kohaYr.has(y.p)) kohaYr.set(y.p, []); kohaYr.get(y.p).push(y); }
+  const markerid = [];
+  for (const [p, yr] of kohaYr) {
+    const k = D.kohad[p];
+    const kat = yr[0].k;
+    const m = L.marker([k.lat, k.lng], { icon: L.divIcon({ className: '', html: `<div class="m" style="--v:var(--k-${kat})"><span>${yr.length > 99 ? '99+' : yr.length}</span></div>`, iconSize: [30, 30], iconAnchor: [4, 30], popupAnchor: [11, -28] }), title: k.n });
+    m.bindPopup(() => kohaPopup(k, [...yr].sort((a, b) => a.s - b.s), lahimMaja(k)), { maxWidth: 320, autoPanPaddingTopLeft: [10, 60] });
+    kohaMarkerid.set(p, m); markerid.push(m);
+  }
+  klastrid.addLayers(markerid);
+  joonistaMajad(kohaYr);
+}
+function lahimMaja(k) { let parim = null, pd = .15; for (const m of MAJAD) { if (Math.abs(m.lat - k.lat) > .01) continue; const d = km(k, m); if (d < pd) { pd = d; parim = m; } } return parim; }
+function joonistaMajad(kohaYr) {
+  majaKiht.clearLayers();
+  if (!olek.majad) { kaart.removeLayer(majaKiht); return; }
+  const markerid = [];
+  for (const m of MAJAD) {
+    if (olek.raadius && km(olek.mina, m) > olek.raadius) continue;
+    // kui samas kohas on juba ürituste marker, ära topelda
+    let yrKoht = null;
+    for (const [p] of kohaYr) { const k = D.kohad[p]; if (Math.abs(k.lat - m.lat) < .002 && km(k, m) < .15) { yrKoht = p; break; } }
+    if (yrKoht != null) continue;
+    const mk = L.marker([m.lat, m.lng], { icon: L.divIcon({ className: '', html: `<div class="maja" title="${esc(m.n)}">${MAJA_SVG}</div>`, iconSize: [22, 22] }), title: m.n });
+    mk.bindPopup(() => kohaPopup({ n: m.n, a: m.a, lat: m.lat, lng: m.lng, www: m.www }, [], m), { maxWidth: 320 });
+    markerid.push(mk);
+  }
+  majaKiht.addLayers(markerid);
+  if (!kaart.hasLayer(majaKiht)) kaart.addLayer(majaKiht);
+}
+
+// ---- GPS ----
+let jalgija;
+function naitaAsukohta(tekst, gps) { $('asukoht').innerHTML = `<span class="punkt${gps ? ' gps' : ''}"></span><span>${tekst}</span>`; }
+async function kohanimi(lat, lng) {
+  let parim = null, pd = 1e9;
+  for (const k of D.kohad) { const d = km({ lat, lng }, k); if (d < pd && k.linn) { pd = d; parim = k.linn; } }
+  return pd < 15 ? parim : null;
+}
+function kaivitaGps(lenda = true) {
+  if (!navigator.geolocation) { naitaAsukohta('Seade ei toeta asukoha määramist. Kasutan Elvat.', false); return; }
+  naitaAsukohta('Otsin asukohta…', false);
+  let esimene = true;
+  if (jalgija != null) navigator.geolocation.clearWatch(jalgija);
+  jalgija = navigator.geolocation.watchPosition(async pos => {
+    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    const nihkunud = !olek.mina.gps || km(olek.mina, { lat, lng }) > .3;
+    olek.mina = { lat, lng, gps: true, tapsus: accuracy, nimi: await kohanimi(lat, lng) };
+    naitaAsukohta(`Sinu asukoht${olek.mina.nimi ? `: <b>${esc(olek.mina.nimi)}</b>` : ''} (±${Math.round(accuracy)} m)`, true);
+    salvesta();
+    if (nihkunud) arvuta(esimene && lenda); else minaKaardile();
+    if (esimene && lenda && !olek.raadius) kaart.setView([lat, lng], 12);
+    esimene = false;
+  }, err => {
+    const pohjus = err.code === 1 ? 'Asukoha luba puudub (luba see brauseri seadetest).' : 'Asukohta ei leitud.';
+    naitaAsukohta(`${pohjus} Näitan: <b>${esc(olek.mina.nimi || 'Elva')}</b>`, false);
+    teade(pohjus);
+  }, { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 });
+}
+$('gpsNupp').onclick = () => kaivitaGps(true);
+$('minuleNupp').onclick = () => { if (!olek.mina.gps) kaivitaGps(true); else kaart.setView([olek.mina.lat, olek.mina.lng], Math.max(kaart.getZoom(), 12)); };
+function teade(t) { const d = document.createElement('div'); d.className = 'teade'; d.textContent = t; document.querySelector('.kaardiala').append(d); setTimeout(() => d.remove(), 4000); }
+
+// ---- käivitus ----
+kiibid();
+naitaAsukohta(olek.mina.vana ? `Viimane asukoht: <b>${esc(olek.mina.nimi || 'salvestatud')}</b>` : 'Asukoht: <b>Elva</b> (vajuta „Minu asukoht")', false);
+Promise.all([fetch('data/yritused.json').then(r => r.json()), fetch('data/kultuurikohad.json').then(r => r.json()).catch(() => ({ kohad: [] }))])
+  .then(([y, m]) => {
+    D = y; MAJAD = m.kohad || [];
+    const t = new Date(y.uuendatud * 1000);
+    $('uuendatud').textContent = `uuendatud ${fLyh.format(t)} ${fKell.format(t)}`;
+    arvuta(true);
+    // luba juba antud → küsi kohe
+    navigator.permissions?.query({ name: 'geolocation' }).then(p => { if (p.state === 'granted') kaivitaGps(true); }).catch(() => {});
+  })
+  .catch(e => { $('nimekiri').innerHTML = `<div class="tyhi">Andmete laadimine ebaõnnestus (${esc(e.message)}). Värskenda lehte.</div>`; });
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+name: Uuenda ja avalda
+on:
+  schedule:
+    - cron: '15 3,11 * * *'   # 06:15 ja 14:15 Eesti suveaja järgi
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  avalda:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      # kohtade/geokoodi vahemälu jookseb järgmisse käivitusse edasi
+      - uses: actions/cache@v4
+        with:
+          path: vahemalu
+          key: vahemalu-${{ github.run_id }}
+          restore-keys: vahemalu-
+      - run: node tooriistad/uuenda.mjs
+      - run: mkdir -p _sait && cp -r index.html ikoon.svg manifest.webmanifest data _sait/
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _sait }
+      - id: deploy
+        uses: actions/deploy-pages@v4
