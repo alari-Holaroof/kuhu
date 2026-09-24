@@ -4,7 +4,7 @@ on:
     - cron: '15 3,11 * * *'   # 06:15 ja 14:15 Eesti suveaja järgi
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, kultuurikava]
 permissions:
   contents: read
   pages: write
@@ -20,6 +20,7 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with: { ref: main }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       # kohtade/geokoodi vahemälu jookseb järgmisse käivitusse edasi
@@ -28,6 +29,9 @@ jobs:
           path: vahemalu
           key: vahemalu-${{ github.run_id }}
           restore-keys: vahemalu-
+      # Kultuurikava blokeerib GitHubi → kasuta kasutaja arvuti saadetud faile (haru kultuurikava)
+      - run: |
+          git fetch --depth 1 origin kultuurikava && git show FETCH_HEAD:kk-toores.json > vahemalu/kk-toores.json && git show FETCH_HEAD:kk-kohad.json > vahemalu/kk-kohad.json || echo 'kultuurikava haru puudub'
       - run: node tooriistad/uuenda.mjs
       - run: mkdir -p _sait && cp -r index.html ikoon.svg manifest.webmanifest data _sait/
       - uses: actions/upload-pages-artifact@v3

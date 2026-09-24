@@ -46,9 +46,14 @@ const puhasta = s => (s || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').
 const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 
 // ---------- 1. Kultuurikava kategooriad ----------
-const kat = await json(`${KK}?do=categories&token=${KK_TOKEN}&lang=nat&format=json`);
+// Kultuurikava blokeerib välismaised serverid (ka GitHubi) → kui API-t ei saa, loe viimane toorfail,
+// mille kasutaja arvuti saadab harusse „kultuurikava" (tooriistad/saada-kultuurikava.mjs)
 const katNimi = {}, katUlem = {};
-for (const c of kat.data.categories) { katNimi[c.id] = c.slug; katUlem[c.id] = c.parent_id; }
+let kkAPI = true;
+try {
+  const kat = await json(`${KK}?do=categories&token=${KK_TOKEN}&lang=nat&format=json`, {}, 2);
+  for (const c of kat.data.categories) { katNimi[c.id] = c.slug; katUlem[c.id] = c.parent_id; }
+} catch (e) { kkAPI = false; console.warn(`Kultuurikava API ei vasta (${e.message.slice(-40)}) → kasutan vahemalu/kk-toores.json`); }
 const PEAKAT = { teater: 'teater', muusika: 'muusika', kino: 'kino', 'pidu-klubi': 'pidu', sport: 'sport', 'pere-ja-lapsed': 'pere', naitus: 'naitus', 'mess-ja-laat': 'laat', kirjandus: 'kirjandus', kirik: 'kirik', huvialad: 'huvi', varia: 'muu' };
 function kategooria(ids) {
   for (const id of ids || []) {
@@ -75,37 +80,48 @@ const MARKSONAD = [
 const arvaKategooria = t => (MARKSONAD.find(([, re]) => re.test(t)) || ['muu'])[0];
 
 // ---------- 2. Kultuurikava üritused ----------
-const kkYritused = [];
-let algus = 0, kokku = Infinity;
-while (algus < kokku) {
-  const d = await json(`${KK}?do=events&token=${KK_TOKEN}&lang=nat&order=starta&start=${algus}&limit=500&format=json&showall=false&alltimes=true&ignoremuuseums=true`);
-  kokku = d.events.total;
-  const r = d.events.results || [];
-  if (!r.length) break;
-  kkYritused.push(...r);
-  algus += 500;
-  process.stdout.write(`\rKultuurikava: ${Math.min(algus, kokku)}/${kokku}`);
-}
-console.log(`\nKultuurikava: ${kkYritused.length} kirjet`);
-
-// ---------- 3. Kultuurikava kohad (koordinaadid, vahemälus) ----------
+let kkYritused = [];
 const kohaVahemalu = loe(path.join(VAHEMALU, 'kk-kohad.json'), {});
-const vajaKohti = new Set();
-for (const e of kkYritused) for (const t of e.times?.length ? e.times : [e]) if (t.place_url) vajaKohti.add(t.place_url.split('/places/')[1]);
-const puudu = [...vajaKohti].filter(u => u && !(u in kohaVahemalu));
-console.log(`Kohti ${vajaKohti.size}, uusi pärida ${puudu.length}`);
-for (let i = 0; i < puudu.length; i += 6) {
-  await Promise.all(puudu.slice(i, i + 6).map(async u => {
-    try {
-      const d = await json(`${KK}?do=getbyurl&token=${KK_TOKEN}&lang=nat&url=${encodeURIComponent(u)}&format=json&type=place`);
-      const c = d.data?.content;
-      kohaVahemalu[u] = c && c.lat ? { n: c.name_nat, a: c.address_nat || '', lat: +c.lat, lng: +c.lng, linn: c.city?.name_nat || '', www: c.homepage_nat || '' } : null;
-    } catch (e) { console.warn('\n  koht', u, e.message); }
+if (kkAPI) {
+  let algus = 0, kokku = Infinity;
+  while (algus < kokku) {
+    const d = await json(`${KK}?do=events&token=${KK_TOKEN}&lang=nat&order=starta&start=${algus}&limit=500&format=json&showall=false&alltimes=true&ignoremuuseums=true`);
+    kokku = d.events.total;
+    const r = d.events.results || [];
+    if (!r.length) break;
+    kkYritused.push(...r);
+    algus += 500;
+    process.stdout.write(`Kultuurikava: ${Math.min(algus, kokku)}/${kokku}`);
+  }
+  // kohad (koordinaadid, vahemälus)
+  const vajaKohti = new Set();
+  for (const e of kkYritused) for (const t of e.times?.length ? e.times : [e]) if (t.place_url) vajaKohti.add(t.place_url.split('/places/')[1]);
+  const puudu = [...vajaKohti].filter(u => u && !(u in kohaVahemalu));
+  console.log(`\nKultuurikava: ${kkYritused.length} kirjet, kohti ${vajaKohti.size}, uusi pärida ${puudu.length}`);
+  for (let i = 0; i < puudu.length; i += 6) {
+    await Promise.all(puudu.slice(i, i + 6).map(async u => {
+      try {
+        const d = await json(`${KK}?do=getbyurl&token=${KK_TOKEN}&lang=nat&url=${encodeURIComponent(u)}&format=json&type=place`);
+        const c = d.data?.content;
+        kohaVahemalu[u] = c && c.lat ? { n: c.name_nat, a: c.address_nat || '', lat: +c.lat, lng: +c.lng, linn: c.city?.name_nat || '', www: c.homepage_nat || '' } : null;
+      } catch (e) { console.warn('  koht', u, e.message); }
+    }));
+    kirjuta(path.join(VAHEMALU, 'kk-kohad.json'), kohaVahemalu);
+  }
+  // kärbitud toorfail (kategooria juba arvutatud), et GitHub saaks ilma API-ta hakkama
+  kkYritused = kkYritused.map(e => ({
+    id: e.id, url: e.url, name: e.name, k: kategooria(e.categories), excerpt: puhasta(e.excerpt).slice(0, 180), isfree: e.isfree, hasimage: e.hasimage,
+    ticketurl: e.ticketurl?.[0]?.ticketurl ? [{ ticketurl: e.ticketurl[0].ticketurl }] : [],
+    start_time: e.start_time, end_time: e.end_time, place_url: e.place_url,
+    times: (e.times || []).map(t => ({ start_time: t.start_time, end_time: t.end_time, place_url: t.place_url })),
   }));
-  process.stdout.write(`\r  kohad ${Math.min(i + 6, puudu.length)}/${puudu.length}`);
-  kirjuta(path.join(VAHEMALU, 'kk-kohad.json'), kohaVahemalu);
+  kirjuta(path.join(VAHEMALU, 'kk-toores.json'), { aeg: nyyd, yritused: kkYritused });
+  if (process.env.AINULT_KULTUURIKAVA) { console.log('VALMIS (ainult Kultuurikava)'); process.exit(0); }
+} else {
+  const t = loe(path.join(VAHEMALU, 'kk-toores.json'), { yritused: [] });
+  kkYritused = t.yritused;
+  console.log(`Kultuurikava toorfailist: ${kkYritused.length} kirjet, ${t.aeg ? Math.round((nyyd - t.aeg) / 3600) + ' h vana' : 'puudub'}`);
 }
-console.log('');
 
 // ---------- 4. OSM: kultuurikohad + asulad ----------
 const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
@@ -170,7 +186,7 @@ function kohaId(voti, k) {
 const yritused = [];
 const nahtud = new Set();
 for (const e of kkYritused) {
-  const k = kategooria(e.categories);
+  const k = e.k || kategooria(e.categories);
   const ajad = e.times?.length ? e.times : [e];
   for (const t of ajad) {
     const lopp = t.end_time || t.start_time;
