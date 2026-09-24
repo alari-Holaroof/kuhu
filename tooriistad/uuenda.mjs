@@ -243,7 +243,7 @@ async function geokodeeri({ venue = '', address = '', city = '' }, eesliide) {
   const vaste = kkKohadNorm.find(x => koos.includes(x.n));
   if (vaste) return { voti: 'kkn:' + vaste.k.n, koht: vaste.k };
   const nv = norm(venue);
-  const osm = nv.length > 5 && osmNorm.find(x => nv === x.n || nv.includes(x.n) || (x.n.includes(nv) && nv.split(' ').length > 1));
+  const osm = nv.length > 5 && osmNorm.find(x => nv === x.n || (x.n.includes(' ') && nv.includes(x.n)) || (x.n.includes(nv) && nv.includes(' ')));
   if (osm) return { voti: `osm:${osm.k.n}|${osm.k.lat}`, koht: { n: osm.k.n, a: osm.k.a, lat: osm.k.lat, lng: osm.k.lng, linn: city, www: osm.k.www } };
   if (/\d/.test(address)) {
     const g = await inAds(city && !norm(address).includes(norm(city)) ? `${address}, ${city}` : address);
@@ -490,6 +490,71 @@ await kaitse('Valdade WordPressid', async () => {
     }
   }
 });
+// Elva valla leht (PDF, kord kuus): viimasel lehel „Elva valla sündmuste kalender" tabelina
+// veerud: KUUPÄEV | SÜNDMUS | ASUKOHT | PILETI HIND. Rea algus = rida, kus sündmus, koht ja hind on samal kõrgusel.
+const KUUD = [['jaan', 1], ['veeb', 2], ['märts', 3], ['marts', 3], ['apr', 4], ['mai', 5], ['juuni', 6], ['juuli', 7], ['aug', 8], ['sept', 9], ['okt', 10], ['nov', 11], ['dets', 12]];
+function kuupaevad(tekst, aasta, lehtKuu) {
+  const kp = [...tekst.toLowerCase().matchAll(/(\d{1,2})\.\s*([a-zõäöü]+)/g)].map(m => {
+    const kuu = (KUUD.find(([k]) => m[2].startsWith(k)) || [])[1]; if (!kuu) return null;
+    const a = kuu < lehtKuu - 2 ? aasta + 1 : aasta;
+    return `${a}-${String(kuu).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  }).filter(Boolean);
+  const kell = tekst.match(/kell\s*(\d{1,2})(?:[.:](\d\d))?/i) || tekst.match(/(?:^|\s)(\d{1,2})[.:](\d\d)(?:\s|$|–)/) || tekst.match(/(?:^|\s)(\d{1,2})\s*[–-]\s*\d{1,2}(?:\s|$)/);
+  return { kp, kell: kell ? `${kell[1].padStart(2, '0')}:${kell[2] || '00'}` : null, kuni: /kuni/i.test(tekst) };
+}
+async function loeElvaLeht(pdfUrl, aasta, lehtKuu, lehtKp) {
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const baidid = new Uint8Array(await (await fetch(pdfUrl, { headers: UA })).arrayBuffer());
+  const doc = await getDocument({ data: baidid, verbosity: 0 }).promise;
+  for (let lk = doc.numPages; lk >= Math.max(1, doc.numPages - 3); lk--) {
+    const tc = await (await doc.getPage(lk)).getTextContent();
+    const w = tc.items.filter(i => i.str.trim()).map(i => ({ x: i.transform[4], y: i.transform[5], t: i.str.trim() }));
+    const pais = w.find(i => /^SÜNDMUS$/.test(i.t)), koht = w.find(i => /^ASUKOHT$/.test(i.t)), hind = w.find(i => /^PILETI/.test(i.t)), kuup = w.find(i => /^KUUP/.test(i.t));
+    if (!pais || !koht || !hind || !kuup) continue;
+    const lopp = w.find(i => /^LISAINFO/.test(i.t))?.y ?? 0;
+    const paremServ = Math.min(...w.filter(i => i.x > hind.x + 60 && Math.abs(i.y - kuup.y) < 25).map(i => i.x - 5), hind.x + 95);
+    const veerg = i => i.x < kuup.x + 68 ? 'kp' : i.x < koht.x - 15 ? 'sy' : i.x < hind.x - 5 ? 'koht' : i.x < paremServ ? 'hind' : null;
+    const tabel = w.filter(i => i.y < kuup.y - 3 && i.y > lopp + 3 && veerg(i)).map(i => ({ ...i, v: veerg(i) }));
+    const algused = [...new Set(tabel.filter(i => i.v === 'sy' && tabel.some(j => j.v === 'koht' && Math.abs(j.y - i.y) < 1.5) && tabel.some(j => j.v === 'hind' && Math.abs(j.y - i.y) < 1.5)).map(i => Math.round(i.y * 2) / 2))].sort((a, b) => b - a);
+    const read = [];
+    for (let r = 0; r < algused.length; r++) {
+      const yl = algused[r] + 1.5, ya = (algused[r + 1] ?? lopp) + 1.5;
+      const osa = v => tabel.filter(i => i.v === v && i.y <= yl && i.y > ya).sort((a, b) => b.y - a.y || a.x - b.x).map(i => i.t).join(' ').replace(/-\s+(?=\p{Ll})/gu, '').replace(/\s+/g, ' ').trim();
+      // kuupäevaveerg võib alata rea kohal („kuni" on ülemisel real)
+      const kpTekst = tabel.filter(i => i.v === 'kp' && i.y <= yl + 2 && i.y > ya).sort((a, b) => b.y - a.y || a.x - b.x).map(i => i.t).join(' ');
+      read.push({ kp: kpTekst, sy: osa('sy'), koht: osa('koht'), hind: osa('hind') });
+    }
+    return read.map(r => ({ ...r, ...kuupaevad(r.kp, aasta, lehtKuu), lehtKp }));
+  }
+  return [];
+}
+await kaitse('Elva valla leht', async () => {
+  const h = await tekst('https://www.elva.ee/infoleht');
+  const lehed = [...new Set([...h.matchAll(/href="([^"]*leht%20nr%20(\d+)[^"]*?(\d\d)\.(\d\d)\.(\d{4})[^"]*\.pdf)"/g)].map(m => JSON.stringify({ u: m[1], nr: +m[2], kp: `${m[5]}-${m[4]}-${m[3]}` })))].map(JSON.parse).sort((a, b) => b.nr - a.nr).slice(0, 2);
+  const nahtudEL = new Set();
+  for (const l of lehed) {
+    const read = await loeElvaLeht(new URL(l.u, 'https://www.elva.ee').href, +l.kp.slice(0, 4), +l.kp.slice(5, 7), l.kp);
+    console.log(`  Elva valla leht nr ${l.nr}: ${read.length} rida`);
+    for (const r of read) {
+      if (!r.kp.length || !r.sy) continue;
+      const alg = r.kuni && r.kp.length === 1 ? l.kp : r.kp[0];
+      const lopuKp = r.kp.length > 1 || r.kuni ? r.kp[r.kp.length - 1] : alg;
+      const s = r.kell && !r.kuni ? tallinnaAeg(`${alg}T${r.kell}:00`) : paevaAlgusTln(alg);
+      const e = lopuKp !== alg ? paevaAlgusTln(lopuKp) + 86399 : r.kell ? s + 7200 : s + 86399;
+      const v = `${norm(r.sy)}|${lopuKp}`; if (nahtudEL.has(v)) continue; nahtudEL.add(v);
+      const kohaNimi = r.koht || 'Elva';
+      const g = await geokodeeri({ venue: kohaNimi, address: /\d/.test(kohaNimi) ? `${kohaNimi}, Elva` : '' }, 'el') || await geokodeeri({ venue: 'Elva' }, 'el');
+      if (!g) continue;
+      lisa({
+        id: `el${norm(r.sy).replace(/ /g, '').slice(0, 30)}${alg.replace(/-/g, '')}`, n: r.sy, k: arvaKategooria(r.sy), s, e, ...(r.kell ? {} : { paev: 1 }),
+        p: kohaId(g.voti, g.koht), u: 'https://elvakultuur.ee/sundmused/', ...(/tasuta/i.test(r.hind) && !/\d/.test(r.hind) ? { tasuta: 1 } : {}),
+        ...(r.hind ? { hind: r.hind } : {}), x: `Elva valla leht, ${lyhikeKp(l.kp)}`, src: 'el',
+      });
+    }
+  }
+});
+function lyhikeKp(k) { const [a, m, p] = k.split('-'); return `${+p}.${+m}.${a}`; }
+
 // Mootorsport: Autospordi Liit + Mootorrattaspordi Föderatsioon (MEC RSS, max 10 kirjet voos → iga ala eraldi)
 const RADAD = [
   [/porsche ?ring|audru ?ring|papsaare/i, 'Porsche Ring', 58.4019, 24.4544], [/laitse/i, 'LaitseRallyPark', 59.1733, 24.3622],

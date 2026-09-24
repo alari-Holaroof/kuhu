@@ -1,0 +1,1 @@
+{ "name": "kuhu", "private": true, "type": "module", "dependencies": { "pdfjs-dist": "4.10.38" } }
