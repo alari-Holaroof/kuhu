@@ -555,6 +555,21 @@ await kaitse('Elva valla leht', async () => {
 });
 function lyhikeKp(k) { const [a, m, p] = k.split('-'); return `${+p}.${+m}.${a}`; }
 
+// Tartumaa Tervisespordikeskus (Uderna, Elva vald): väike HTML-nimekiri tervisesport.ee/sundmused
+await kaitse('Tervisespordikeskus', async () => {
+  const h = await tekst('https://tervisesport.ee/sundmused');
+  const koht = { n: 'Tartumaa Tervisespordikeskus', a: 'Uderna küla, Elva vald', lat: 58.18201, lng: 26.39906, linn: 'Uderna', www: 'https://tervisesport.ee' };
+  for (const art of h.split('<article class="post">').slice(1)) {
+    const aeg = puhasta((art.match(/<time[^>]*>([\s\S]*?)<\/time>/) || [])[1]);
+    const kp = [...aeg.matchAll(/(\d\d)\.(\d\d)\.(\d{4})/g)].map(m => `${m[3]}-${m[2]}-${m[1]}`);
+    const n = puhasta((art.match(/class="title[^"]*">([\s\S]*?)<\/span>/) || [])[1]);
+    if (!kp.length || !n) continue;
+    const link = (art.match(/readbutton"><a href="([^"]+)"/) || [])[1] || 'https://tervisesport.ee/sundmused';
+    lisa({ id: `ts${norm(n).replace(/ /g, '').slice(0, 30)}${kp[0].replace(/-/g, '')}`, n, k: arvaKategooria(`${n} sport`) === 'muu' ? 'sport' : arvaKategooria(`${n} sport`), s: paevaAlgusTln(kp[0]), e: paevaAlgusTln(kp[kp.length - 1]) + 86399, paev: 1,
+      p: kohaId('ts:tartumaa', koht), u: link.startsWith('http') ? link : `https://tervisesport.ee${link}`, src: 'ts' });
+  }
+});
+
 // Mootorsport: Autospordi Liit + Mootorrattaspordi Föderatsioon (MEC RSS, max 10 kirjet voos → iga ala eraldi)
 const RADAD = [
   [/porsche ?ring|audru ?ring|papsaare/i, 'Porsche Ring', 58.4019, 24.4544], [/laitse/i, 'LaitseRallyPark', 59.1733, 24.3622],
